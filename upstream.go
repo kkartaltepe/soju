@@ -41,6 +41,9 @@ var permanentUpstreamCaps = map[string]bool{
 
 	"draft/account-registration": true,
 	"draft/extended-monitor":     true,
+
+	"twitch.tv/tags": true,
+	"youtube.com/tags": true,
 }
 
 type registrationError struct {

@@ -23,6 +23,19 @@ import (
 	"git.sr.ht/~emersion/soju/xirc"
 )
 
+var youtubeTags = map[string]bool {
+    "emotes": true,
+    "emotes-url": true,
+}
+var twitchTags = map[string]bool {
+    "badges": true,
+    "display-name": true,
+    "mod": true,
+    "subscriber": true,
+    "user-type": true,
+    "emotes": true,
+}
+
 type ircError struct {
 	Message *irc.Message
 }
@@ -572,6 +585,17 @@ func (dc *downstreamConn) SendMessage(msg *irc.Message) {
 			case "batch":
 				supported = dc.caps.IsEnabled("batch")
 			}
+			if dc.caps.IsEnabled("twitch.tv/tags") {
+			    if sup, ok := twitchTags[name]; ok {
+			        supported = sup
+			    }
+			}
+			if dc.caps.IsEnabled("youtube.com/tags") {
+			    if sup, ok := youtubeTags[name]; ok {
+			        supported = sup
+			    }
+			}
+
 			if !supported {
 				delete(msg.Tags, name)
 			}
@@ -1137,6 +1161,13 @@ func (dc *downstreamConn) updateSupportedCaps() {
 		dc.setSupportedCap("sasl", "PLAIN")
 	} else if dc.network != nil {
 		dc.unsetSupportedCap("sasl")
+	}
+
+	if uc := dc.upstream(); uc != nil && uc.caps.IsEnabled("twitch.tv/tags") {
+		dc.setSupportedCap("twitch.tv/tags", "")
+	}
+	if uc := dc.upstream(); uc != nil && uc.caps.IsEnabled("youtube.com/tags") {
+		dc.setSupportedCap("youtube.com/tags", "")
 	}
 
 	if uc := dc.upstream(); uc != nil && uc.caps.IsEnabled("draft/account-registration") {

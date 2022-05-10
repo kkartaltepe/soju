@@ -1,0 +1,1 @@
+Add some translation of TWITCH's auxiliary message types to NOTICE/MODE
