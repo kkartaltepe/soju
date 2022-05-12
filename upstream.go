@@ -42,6 +42,9 @@ var permanentUpstreamCaps = map[string]bool{
 	"draft/account-registration": true,
 	"draft/extended-monitor":     true,
 
+	// Twitch IRC extension messages to translate to typical messages.
+	"twitch.tv/commands": true,
+
 	"twitch.tv/tags": true,
 	"youtube.com/tags": true,
 }
@@ -490,6 +493,53 @@ func (uc *upstreamConn) handleMessage(ctx context.Context, msg *irc.Message) err
 
 	if _, ok := msg.Tags["time"]; !ok && !isNumeric(msg.Command) {
 		msg.Tags["time"] = irc.TagValue(xirc.FormatServerTime(time.Now()))
+	}
+
+	if uc.caps.IsEnabled("twitch.tv/commands") {
+	    switch msg.Command {
+	    case "CLEARCHAT", "CLEARMSG", "HOSTTARGET", "RECONNECT", "GLOBALUSERSTATE", "USERSTATE":
+	        return nil
+	    case "WHISPER":
+	        msg.Command = "PRIVMSG"
+	    case "ROOMSTATE":
+		    var target string
+		    if err := parseMessageParams(msg, &target); err != nil {
+		        return err
+		    }
+
+	        modes := []string{}
+	        if set, ok := msg.Tags["subs-only"]; ok && set != "0" {
+	            modes = append(modes, "Channel is in subscribers only mode")
+	        }
+	        if set, ok := msg.Tags["followers-only"]; ok && set != "-1" {
+	            modes = append(modes, fmt.Sprintf("Channel is in followers only (%sm) mode", msg.Tags["followers-only"]))
+	        }
+	        if set, ok := msg.Tags["emote-only"]; ok && set != "0" {
+	            modes = append(modes, "Channel is in emote only mode")
+	        }
+	        if set, ok := msg.Tags["r9k"]; ok && set != "0" {
+	            modes = append(modes, "Channel is in r9k mode")
+	        }
+	        if set, ok := msg.Tags["slow"]; ok && set != "0" {
+	            modes = append(modes, fmt.Sprintf("Channel is in slow (%ss) mode", msg.Tags["slow"]))
+	        }
+	        if len(modes) == 0 {
+	            return nil
+	        }
+	        msg.Command = "NOTICE"
+	        msg.Prefix = &irc.Prefix{"services", "services", uc.hostname}
+	        msg.Params = []string{target, strings.Join(modes, ";")}
+	        msg.Tags = irc.Tags{}
+	    case "USERNOTICE":
+		    var target string
+		    if err := parseMessageParams(msg, &target); err != nil {
+		        return err
+		    }
+	        msg.Command = "NOTICE"
+	        msg.Prefix = &irc.Prefix{"services", "services", uc.hostname}
+	        msg.Params = []string{target, string(msg.Tags["system-msg"])}
+	        msg.Tags = irc.Tags{}
+	    }
 	}
 
 	switch msg.Command {
@@ -2096,6 +2146,10 @@ func (uc *upstreamConn) SendMessage(ctx context.Context, msg *irc.Message) {
 	if !uc.caps.IsEnabled("message-tags") {
 		msg = msg.Copy()
 		msg.Tags = nil
+	}
+
+	if uc.caps.IsEnabled("twitch.tv/commands") && msg.Command == "AWAY" {
+	    return // twitch doesnt support AWAY.
 	}
 
 	uc.srv.metrics.upstreamOutMessagesTotal.Inc()
