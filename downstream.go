@@ -30,9 +30,6 @@ var youtubeTags = map[string]bool {
 var twitchTags = map[string]bool {
     "badges": true,
     "display-name": true,
-    "mod": true,
-    "subscriber": true,
-    "user-type": true,
     "emotes": true,
 }
 
