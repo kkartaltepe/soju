@@ -537,7 +537,11 @@ func (uc *upstreamConn) handleMessage(ctx context.Context, msg *irc.Message) err
 		    }
 	        msg.Command = "NOTICE"
 	        msg.Prefix = &irc.Prefix{"services", "services", uc.hostname}
-	        msg.Params = []string{target, string(msg.Tags["system-msg"])}
+	        content := string(msg.Tags["system-msg"])
+	        if len(content) < 1 && len(msg.Params) > 1 {
+	            content = msg.Params[1]
+	        }
+	        msg.Params = []string{target, content}
 	        msg.Tags = irc.Tags{}
 	    }
 	}
